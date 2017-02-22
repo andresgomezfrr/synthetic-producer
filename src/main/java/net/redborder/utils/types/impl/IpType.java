@@ -33,6 +33,6 @@ public class IpType implements Type {
     @Override
     public Object get() {
         Integer rand = (randomGen.nextInt(max - min) + min);
-        return InetAddresses.fromInteger(rand);
+        return InetAddresses.fromInteger(rand).getHostAddress();
     }
 }
