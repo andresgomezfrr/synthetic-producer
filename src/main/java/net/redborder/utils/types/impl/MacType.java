@@ -12,7 +12,7 @@ public class MacType implements Type {
 
     private Random randomGen = new Random();
     private Long min, max;
-    private static String separator;
+    private String separator;
 
     public MacType(Map<String, Object> params) {
         String minMacStr = (String) params.get("min");
@@ -41,7 +41,7 @@ public class MacType implements Type {
         return macFromLong(selectedMac);
     }
 
-    public static String macFromLong(long address) {
+    public String macFromLong(long address) {
         StringBuilder builder = new StringBuilder();
 
         byte[] addressInBytes = new byte[] {
@@ -63,7 +63,7 @@ public class MacType implements Type {
         return builder.toString();
     }
 
-    public static long longFromMac(String address) {
+    public long longFromMac(String address) {
         String[] elements = address.split(":");
         byte[] addressInBytes = new byte[6];
         long mac = 0;

@@ -15,17 +15,19 @@ public class MacTypeTest extends TestCase {
     public void get() {
         String MIN = "00:00:00:00:00:00";
         String MAX = "00:00:00:00:00:FF";
-        long minLong = MacType.longFromMac(MIN);
-        long maxLong = MacType.longFromMac(MAX);
+
 
         Map<String, Object> opts = new HashMap<>();
         opts.put("max", MAX);
         opts.put("min", MIN);
-
         MacType type = new MacType(opts);
+
+        long minLong = type.longFromMac(MIN);
+        long maxLong = type.longFromMac(MAX);
+
         for (int i = 0; i < 999; i++) {
             String result = (String) type.get();
-            long resultLong = MacType.longFromMac(result);
+            long resultLong = type.longFromMac(result);
 
             if (resultLong >= maxLong || resultLong < minLong) {
                 fail("Mac range violated");
