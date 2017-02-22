@@ -1,25 +1,33 @@
 package net.redborder.utils.producers;
 
+import com.codahale.metrics.ConsoleReporter;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class KafkaProducer implements IProducer {
     private static final Logger log = LoggerFactory.getLogger(KafkaProducer.class);
+    private final static MetricRegistry metrics = new MetricRegistry();
 
     private String brokersString;
     private String topic;
     private String partitionKey = "";
     private org.apache.kafka.clients.producer.KafkaProducer<String, String> producer;
+    private final Meter messages = metrics.meter("messages");
 
     // Connects to ZK, reads the broker data there, and builds
     // a string like the following: host1:9092,host2:9092.
@@ -79,14 +87,21 @@ public class KafkaProducer implements IProducer {
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
         props.put(ProducerConfig.ACKS_CONFIG, "1");
-        props.put(ProducerConfig.RETRIES_CONFIG, "60");
-        props.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, "1000");
-        props.put(ProducerConfig.BATCH_SIZE_CONFIG, "10000");
+        props.put(ProducerConfig.RETRIES_CONFIG, "3");
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, "1000");
         props.put(ProducerConfig.LINGER_MS_CONFIG, "500");
         props.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, "net.redborder.utils.producers.SimplePartitioner");
 
         // Create the producer
         producer = new org.apache.kafka.clients.producer.KafkaProducer<>(props);
+
+        // Report the metrics of messages produced
+        ConsoleReporter reporter = ConsoleReporter.forRegistry(metrics)
+                .convertRatesTo(TimeUnit.SECONDS)
+                .convertDurationsTo(TimeUnit.MILLISECONDS)
+                .build();
+
+        reporter.start(5, TimeUnit.SECONDS);
     }
 
     public String getPartitionKey() {
@@ -96,6 +111,13 @@ public class KafkaProducer implements IProducer {
     @Override
     public void send(String message, String key) {
         ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, message);
-        producer.send(record);
+        producer.send(record, new Callback() {
+            @Override
+            public void onCompletion(RecordMetadata metadata, Exception exception) {
+                if(exception == null)  {
+                    messages.mark();
+                }
+            }
+        });
     }
 }

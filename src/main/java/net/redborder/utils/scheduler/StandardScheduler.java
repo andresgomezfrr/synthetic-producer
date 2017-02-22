@@ -18,13 +18,11 @@ import java.util.concurrent.TimeUnit;
 
 public class StandardScheduler implements Scheduler {
     private final static Logger log = LoggerFactory.getLogger(StandardScheduler.class);
-    private final static MetricRegistry metrics = new MetricRegistry();
 
     private final Generator generator;
     private final IProducer producer;
     private final RateLimiter rateLimiter;
     private final List<SenderThread> senderThreads;
-    private final Meter messages = metrics.meter("messages");
 
     public StandardScheduler(Generator generator, IProducer producer, double rate, int threads) {
         this.generator = generator;
@@ -37,13 +35,7 @@ public class StandardScheduler implements Scheduler {
             senderThreads.add(new SenderThread());
         }
 
-        // Report the metrics of messages produced
-        ConsoleReporter reporter = ConsoleReporter.forRegistry(metrics)
-                .convertRatesTo(TimeUnit.SECONDS)
-                .convertDurationsTo(TimeUnit.MILLISECONDS)
-                .build();
 
-        reporter.start(5, TimeUnit.SECONDS);
     }
 
     @Override
@@ -73,7 +65,6 @@ public class StandardScheduler implements Scheduler {
                 if(partitionKeyObject != null) partitionKey = partitionKeyObject.toString();
                 String json = gson.toJson(message);
                 producer.send(json, partitionKey);
-                messages.mark();
             }
         }
     }
