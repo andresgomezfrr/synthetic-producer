@@ -1,6 +1,7 @@
 package net.redborder.utils;
 
 import net.redborder.utils.generators.MessageGenerator;
+import net.redborder.utils.producers.HttpProducer;
 import net.redborder.utils.producers.KafkaProducer;
 import net.redborder.utils.scheduler.Scheduler;
 import net.redborder.utils.scheduler.StandardScheduler;
@@ -18,7 +19,7 @@ public class SyntheticProducer {
         options.addOption("r", "rate", true, "messages rate per second");
         options.addOption("t", "threads", true, "number of producer threads");
         options.addOption("c", "config", true, "config file path");
-        options.addOption("z", "zookeeper", true, "zookeeper connect string");
+        options.addOption("e", "endpoint", true, "endpoint connect string");
         options.addOption("h", "help", false, "show this help");
 
         CommandLineParser parser = new BasicParser();
@@ -33,7 +34,7 @@ public class SyntheticProducer {
         }
 
         if (cmdLine.hasOption("h") || !cmdLine.hasOption("r") || !cmdLine.hasOption("t") ||
-                !cmdLine.hasOption("c") || !cmdLine.hasOption("z")) {
+                !cmdLine.hasOption("c") || !cmdLine.hasOption("e")) {
             helpFormatter.printHelp("java -jar synthetic-producer.jar", options);
             System.exit(1);
         }
@@ -45,16 +46,14 @@ public class SyntheticProducer {
         Map<String, Object> fields = configFile.get("fields");
         MessageGenerator messageGenerator = new MessageGenerator(fields);
 
-        // Create the producers
-        String zkConnect = cmdLine.getOptionValue("zookeeper");
-        String topic = configFile.get("topic");
-        String partitionKey = configFile.get("partitionKey");
-        KafkaProducer kafkaProducer = new KafkaProducer(zkConnect, topic, partitionKey);
+        String endpoint = cmdLine.getOptionValue("endpoint");
+
+        HttpProducer httpProducer = new HttpProducer(endpoint);
 
         // Create the scheduler
         double rate = Double.valueOf(cmdLine.getOptionValue("rate"));
         int threads = Integer.valueOf(cmdLine.getOptionValue("threads"));
-        Scheduler scheduler = new StandardScheduler(messageGenerator, kafkaProducer, rate, threads);
+        Scheduler scheduler = new StandardScheduler(messageGenerator, httpProducer, rate, threads);
         scheduler.start();
 
         // Shutdown hooks
